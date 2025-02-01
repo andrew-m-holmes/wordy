@@ -8,17 +8,6 @@ import (
 	"time"
 )
 
-type Word struct {
-	Id                 string    `json:"id"`
-	Term               string    `json:"term"`
-	PersonalDefinition string    `json:"personalDefinition"`
-	OfficialDefinition string    `json:"officialDefinition"`
-	Examples           []string  `json:"examples"`
-	DateAdded          time.Time `json:"dateAdded"`
-	DateReviewed       time.Time `json:"dateReviewed"`
-	Understanding      int       `json:"Understanding"`
-}
-
 type WordHandler struct {
 	http.Handler
 }
@@ -54,12 +43,17 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Wordy server running"))
 }
 
+func homepage(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Wordy homepage"))
+}
+
 func main() {
 
 	wordHandler := &WordHandler{}
-
-	http.Handle("/api/words", wordHandler)
+	http.HandleFunc("/home", homepage)
 	http.HandleFunc("/health", healthCheck)
+	http.Handle("/api/words", wordHandler)
 
 	log.Printf("Starting Wordy server on port %d\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
