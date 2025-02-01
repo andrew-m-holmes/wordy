@@ -1,39 +1,69 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
+	"time"
 )
 
-const portNumber = ":8080"
-
 type Word struct {
-	Term         string
-	PartOfSpeech string
-	Definition   string
+	Id                 string    `json:"id"`
+	Term               string    `json:"term"`
+	PersonalDefinition string    `json:"personalDefinition"`
+	OfficialDefinition string    `json:"officialDefinition"`
+	Examples           []string  `json:"examples"`
+	DateAdded          time.Time `json:"dateAdded"`
+	DateReviewed       time.Time `json:"dateReviewed"`
+	Understanding      int       `json:"Understanding"`
 }
 
-func handlerHome(w http.ResponseWriter, r *http.Request) {
-	data := Word{
-		Term:         "dog",
-		PartOfSpeech: "noun",
-		Definition:   "Four legged animal descending from wolves.",
-	}
+type WordHandler struct {
+	http.Handler
+}
 
-	tmpl, err := template.ParseFiles("templates/index.html")
-	if err != nil {
-		log.Fatal(err)
+const port int = 8080
+
+func (h *WordHandler) serveHttp(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var word Word
+
+		if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		} else {
+			word.DateAdded = time.Now()
+			word.DateReviewed = time.Now()
+			word.Understanding = 1
+
+			// TODO: add to DB
+			w.Header().Set("Content-type", "application/json")
+			json.NewEncoder(w).Encode(word)
+		}
+
+	} else if r.Method == http.MethodGet {
+		w.Write([]byte("Word retrieval not yet implemented"))
+
+	} else {
+		http.Error(w, "Method not implemented", http.StatusMethodNotAllowed)
 	}
-	tmpl.Execute(w, data)
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Wordy server running"))
 }
 
 func main() {
-	fmt.Printf("HTTP server listening on localhost%v\n", portNumber)
-	http.HandleFunc("/", handlerHome)
-	err := http.ListenAndServe(portNumber, nil)
-	if err != nil {
-		log.Fatal(err)
+
+	wordHandler := &WordHandler{}
+
+	http.Handle("/api/words", wordHandler)
+	http.HandleFunc("/health", healthCheck)
+
+	log.Printf("Starting Wordy server on port %d\n", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+		log.Fatal("Server error:", err)
 	}
+
 }
